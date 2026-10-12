@@ -1,0 +1,10 @@
+A: TRUE
+B : OR
+C : TRUE
+#B :EQ
+#C : NOT
+#D : AND
+
+A -> B[0]
+C -> B[1]
+B -> DISPLAY

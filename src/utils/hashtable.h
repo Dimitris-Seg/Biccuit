@@ -12,6 +12,7 @@
 #define HASHTABLE_H
 
 #include <stdlib.h>
+#include "bcc_definitions.h"
 
 #define HT_NUM_BUCKETS 32
 
@@ -36,15 +37,6 @@ struct HTEntry {
     HTENTRY_BASE_MEMBERS
 };
 
-//// Some useful hashtable entry types ////
-
-struct HTEntryInt {
-    HTENTRY_BASE_MEMBERS
-    int value;
-};
-
-//// End of entry types ////
-
 
 Hashtable_t* hashtable_create(size_t elementSize);
 void hashtable_destroy(Hashtable_t* ht);
@@ -55,6 +47,8 @@ void hashtable_destroy(Hashtable_t* ht);
  *  at the start of its definition.
  */
 void hashtable_insert(Hashtable_t* ht, string key, void* val);
+
+void hashtable_remove(Hashtable_t* ht, string key);
 
 void* hashtable_find(Hashtable_t* ht, string key);
 

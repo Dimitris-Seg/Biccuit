@@ -12,9 +12,18 @@
 #define PARSER_H
 
 #include <stdbool.h>
+#include "../utils/list.h"
 #include "../utils/bcc_definitions.h"
-#include "../circuit/circuit.h"
+#include "../nodes/node.h"
 
-bool parseCircuit(string filename, Circuit_t* circuit);
+struct ListEntryToken {
+    LIST_ENTRY_BASE_MEMBERS
+    int tokenid;
+    NodeDescriptor_t* node_descriptor;
+    string value;
+    int lineno;
+};
+
+List_t* parse_circuit(string filename);
 
 #endif

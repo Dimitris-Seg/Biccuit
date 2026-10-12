@@ -22,8 +22,20 @@ void* safe_malloc(size_t bytes) {
     return mem;
 }
 
+void* safe_calloc(size_t n, size_t element_size) {
+    void *mem = calloc(n, element_size);
+
+    if(mem == NULL) {
+        printf("Failed to allocate %lu elements of %lu bytes each.", n, element_size);
+
+        exit(1);
+    }
+
+    return mem;
+}
+
 void* safe_realloc(void* mem, size_t bytes) {
-    void *mem = realloc(mem, bytes);
+    mem = realloc(mem, bytes);
 
     if(mem == NULL) {
         printf("Failed to reallocate %lu bytes.", bytes);

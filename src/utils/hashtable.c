@@ -8,15 +8,17 @@
  * @file hashtable.c
 */
 
-#include "hashtable.h"
 #include <string.h>
-#include "bcc_definitions.h"
+#include "hashtable.h"
 #include "safe_alloc.h"
 
-static int HashString(string str);
-static void BucketInsert(HTBucket_t* bucket, string key, void* val);
-static void BucketDestroy(HTBucket_t* bucket);
-static void* BucketFind(HTBucket_t* bucket, string key);
+///////
+static int hash_string(string str);
+static void bucket_insert(HTBucket_t* bucket, string key, void* val);
+static void bucket_destroy(HTBucket_t* bucket);
+static void* bucket_find(HTBucket_t* bucket, string key);
+static void bucket_remove(HTBucket_t* bucket, string key);
+///////
 
 Hashtable_t* hashtable_create(size_t elementSize) {
     Hashtable_t* ht = (Hashtable_t*)safe_malloc(sizeof(Hashtable_t));
@@ -36,7 +38,7 @@ Hashtable_t* hashtable_create(size_t elementSize) {
 
 void hashtable_destroy(Hashtable_t* ht) {
     for(int i = 0; i < ht->total_buckets; ++i) {
-        BucketDestroy(&ht->buckets[i]);
+        bucket_destroy(&ht->buckets[i]);
     }
 
     safe_free(ht->buckets);
@@ -44,22 +46,30 @@ void hashtable_destroy(Hashtable_t* ht) {
 }
 
 void hashtable_insert(Hashtable_t* ht, string key, void* val) {
-    int bucket_no = HashString(key) % ht->total_buckets;
+    int bucket_no = hash_string(key) % ht->total_buckets;
 
     HTBucket_t* bucket = &(ht->buckets[bucket_no]);
 
-    BucketInsert(bucket, key, val);
+    bucket_insert(bucket, key, val);
+}
+
+void hashtable_remove(Hashtable_t* ht, string key) {
+    int bucket_no = hash_string(key) % ht->total_buckets;
+
+    HTBucket_t* bucket = &(ht->buckets[bucket_no]);
+
+    bucket_remove(bucket, key);
 }
 
 void* hashtable_find(Hashtable_t* ht, string key) {
-    int bucket_no = HashString(key) % ht->total_buckets;
+    int bucket_no = hash_string(key) % ht->total_buckets;
 
     HTBucket_t* bucket = &(ht->buckets[bucket_no]);
 
-    return BucketFind(bucket, key);
+    return bucket_find(bucket, key);
 }
 
-static int HashString(string str) {
+static int hash_string(string str) {
     int hash = 0;
 
     while(*str != '\0') {
@@ -71,7 +81,7 @@ static int HashString(string str) {
 }
 
 
-static void BucketInsert(HTBucket_t* bucket, string key, void* val) {
+static void bucket_insert(HTBucket_t* bucket, string key, void* val) {
     HTEntry_t* processedEntry = NULL;
 
     if(bucket->list_head != NULL) {
@@ -99,7 +109,28 @@ static void BucketInsert(HTBucket_t* bucket, string key, void* val) {
     }
 }
 
-static void BucketDestroy(HTBucket_t* bucket) {
+static void bucket_remove(HTBucket_t* bucket, string key) {
+    HTEntry_t* processedEntry = NULL;
+
+    if(bucket->list_head != NULL) {
+        HTEntry_t* it = bucket->list_head;
+        while(it) {
+            if(!strcmp(it->key, key)) {
+                processedEntry = it;
+                break;
+            }
+
+            it = it->next;
+        }
+    }
+
+    if(processedEntry != NULL) {
+        bucket->list_head = processedEntry->next;
+        safe_free(processedEntry);
+    }
+}
+
+static void bucket_destroy(HTBucket_t* bucket) {
     HTEntry_t* it = bucket->list_head;
     HTEntry_t* prev = NULL;
 
@@ -112,7 +143,7 @@ static void BucketDestroy(HTBucket_t* bucket) {
     bucket->list_head = NULL;
 }
 
-static void* BucketFind(HTBucket_t* bucket, string key) {
+static void* bucket_find(HTBucket_t* bucket, string key) {
     HTEntry_t* it = bucket->list_head;
 
     while(it) {

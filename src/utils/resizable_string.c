@@ -18,9 +18,13 @@ ResizableString_t* new_resizable_string() {
     str->size = RESIZABLE_STRING_DEFAULT_SIZE;
 
     str->chars = safe_malloc(str->size);
+
+    str->chars[0] = '\0';
+
+    return str;
 }
 
-ResizableString_t* resizable_string_destroy(ResizableString_t* str) {
+void resizable_string_destroy(ResizableString_t* str) {
     if(str->chars != NULL)
         safe_free(str->chars);
     safe_free(str);
@@ -35,16 +39,21 @@ void resizable_string_append(ResizableString_t* str, char c) {
     if(str->len+2 >= str -> size) {
         str -> size += RESIZABLE_STRING_GROW_INCREMENT;
         str->chars = (char*)safe_realloc(str->chars, str->size);
-        str->chars[str->len++] = c;
-        str->chars[str->len] = '\0'; 
     }
+
+    str->chars[str->len++] = c;
+    str->chars[str->len] = '\0'; 
 }
 
 string resizable_string_get(ResizableString_t* str) {
     return str->chars;
 }
 
-string resizable_string_clear(ResizableString_t* str) {
+void resizable_string_clear(ResizableString_t* str) {
     memset(str->chars, '\0', str->len);
     str->len = 0;
+}
+
+size_t resizable_string_len(ResizableString_t* str) {
+    return str->len;
 }
