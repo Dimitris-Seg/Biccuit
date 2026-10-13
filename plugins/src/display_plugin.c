@@ -62,10 +62,23 @@ static void evaluate_display(Node_t* self, const BCC_WIRE_TYPE* inputs, int inpu
         initialized_frames = true;
     }
 
-    // Print the line, clear to the end of the line, and move to the next line
-    printf("\rDisplay #%d -> value: %d\033[K\n", display_id, inputs[0]);
+    string display_name = NULL;
+
+    if(self->args != NULL && list_len(self->args) > 0) {
+        struct ListEntryNodeArg* arg = list_get(self->args, 0);
+
+        if(arg->node_arg.type == BCC_ARG_STRING)
+            display_name = arg->node_arg.str_val;
+    }
+
+    //DEBUG("Display name: %s", display_name);
+
+    if(display_name != NULL)
+        printf("\rDisplay '%s' -> value: %d\033[K\n", display_name, inputs[0]);
+    else
+        printf("\rDisplay #%d -> value: %d\033[K\n", display_id, inputs[0]);
+    
     fflush(stdout);
-    //printf("* displayed value: %d\n", inputs[0]);
     self->output = inputs[0];
 }
 //

@@ -18,6 +18,8 @@
 #define BCC_INVALID_TOKEN -1
 #define BCC_NO_TOKEN -2
 #define COMMENT_IDENTIFIER '#'
+#define STRING_IDENTIFIER '\"'
+#define STRING_ESCAPE_IDENTIFIER '\\'
 #define NL_IDENTIFIER '\n'
 #define CR_IDENTIFIER '\r'
 
@@ -25,8 +27,12 @@ enum BaseToken {
     BT_CONNECTOR,
     BT_OPEN_INDEXER,
     BT_CLOSE_INDEXER,
+    BT_OPEN_ARGS,
+    BT_CLOSE_ARGS,
+    BT_ARG_SEPARATOR,
     BT_DEFINE,
     BT_NUMBER,
+    BT_STRING,
     BT_ID,
     BT_NODE
 };

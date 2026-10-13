@@ -21,17 +21,19 @@
 static void append_to_tokenlist(List_t* tokenlist, ResizableString_t* buffer, struct HTEntryTokenNode* token, int lineno);
 static void destroy_tokenlist_entry(void* entry);
 static bool is_symbol(char c);
-static struct HTEntryTokenNode* flush_buffer(ResizableString_t* buffer);
+static int resolve_escape_character(int c);
+static struct HTEntryTokenNode* flush_buffer(ResizableString_t* buffer, int explicit_tokenid);
 static bool is_id(string str);
 static bool is_int(string str);
 static bool is_not_eof(int c);
 static bool is_newline(int c);
-static struct HTEntryTokenNode* flush_and_clear(ResizableString_t* buffer, List_t* token_list, int lineno);
+static struct HTEntryTokenNode* flush_and_clear(ResizableString_t* buffer, List_t* token_list, int lineno, int explicit_tokenid);
 ///////
 
 static struct HTEntryTokenNode NO_TOKEN;
 static struct HTEntryTokenNode ID_TOKEN = (struct HTEntryTokenNode){.tokenid = BT_ID, .node_descriptor = NULL};
 static struct HTEntryTokenNode NUM_TOKEN = (struct HTEntryTokenNode){.tokenid = BT_NUMBER, .node_descriptor = NULL};
+static struct HTEntryTokenNode STR_TOKEN = (struct HTEntryTokenNode){.tokenid = BT_STRING, .node_descriptor = NULL};
 
 List_t* parse_circuit(string filename) {
     FILE* file = fopen(filename, "r");
@@ -47,6 +49,8 @@ List_t* parse_circuit(string filename) {
     int lineno = 1;
     int linepos = 0;
     bool in_comment = false;
+    bool in_string = false;
+    int old_c = '\0';
     int c = '\0';
 
     while(is_not_eof(c = getc(file))) {
@@ -63,8 +67,28 @@ List_t* parse_circuit(string filename) {
             in_comment = false;
         }
 
+        if(c == STRING_IDENTIFIER) {
+            if(in_string && old_c != STRING_ESCAPE_IDENTIFIER) {
+                in_string = false;
+                flush_and_clear(buffer, token_list, lineno, BT_STRING);
+                continue;
+            }else if(in_string) {
+                c = resolve_escape_character(c);
+            } else {
+                in_string = !in_string;
+                flush_and_clear(buffer, token_list, lineno, BCC_NO_TOKEN);
+                continue;
+            }
+        } 
+
+        if(in_string) {
+            resizable_string_append(buffer, c);
+            ++linepos;
+            continue;
+        }
+
         if(isspace(c)) {
-            struct HTEntryTokenNode* token = flush_and_clear(buffer, token_list, lineno);
+            struct HTEntryTokenNode* token = flush_and_clear(buffer, token_list, lineno, BCC_NO_TOKEN);
 
             if(token == NULL) {
                 ERROR("Parsing failed at line %d, index %d: Unexpected token '%s'", lineno, linepos, resizable_string_get(buffer));
@@ -89,7 +113,7 @@ List_t* parse_circuit(string filename) {
                 )
             )
         ) {
-            struct HTEntryTokenNode* token = flush_and_clear(buffer, token_list, lineno);
+            struct HTEntryTokenNode* token = flush_and_clear(buffer, token_list, lineno, BCC_NO_TOKEN);
             token_matched = token != NULL && token != &NO_TOKEN;
         }
 
@@ -97,17 +121,40 @@ List_t* parse_circuit(string filename) {
             resizable_string_append(buffer, c);
             ++linepos;
         }
+
+        old_c = c;
     }
 
-    flush_and_clear(buffer, token_list, lineno);
+    flush_and_clear(buffer, token_list, lineno, BCC_NO_TOKEN);
 
     fclose(file);
 
     return token_list;
 }
 
-static struct HTEntryTokenNode* flush_and_clear(ResizableString_t* buffer, List_t* token_list, int lineno) {
-    struct HTEntryTokenNode* token = flush_buffer(buffer);
+static int resolve_escape_character(int c) {
+    switch(c) {
+        case 'n':
+            return '\n';
+        case 'r':
+            return '\r';
+        case 'b':
+            return '\b';
+        case 't':
+            return '\t';
+        case 'v':
+            return '\v';
+        case '\\':
+            return '\\';
+        case '\"':
+            return '\"';
+        default:
+            return c;
+    }
+}
+
+static struct HTEntryTokenNode* flush_and_clear(ResizableString_t* buffer, List_t* token_list, int lineno, int explicit_tokenid) {
+    struct HTEntryTokenNode* token = flush_buffer(buffer, explicit_tokenid);
 
     if(token != NULL && token != &NO_TOKEN) {
         // Add to token list
@@ -139,8 +186,19 @@ static bool is_symbol(char c) {
     return !(isalnum(c) || c == '_');
 }
 
-static struct HTEntryTokenNode* flush_buffer(ResizableString_t* buffer) {
+static struct HTEntryTokenNode* flush_buffer(ResizableString_t* buffer, int explicit_tokenid) {
     char* str = resizable_string_get(buffer);
+
+    if(explicit_tokenid != BCC_NO_TOKEN) {
+        switch(explicit_tokenid) {
+            case BT_ID:
+                return &ID_TOKEN;
+            case BT_STRING:
+                return &STR_TOKEN;
+            case BT_NUMBER:
+                return &NUM_TOKEN;
+        }
+    }
 
     if(str[0] == '\0')
         return &NO_TOKEN;

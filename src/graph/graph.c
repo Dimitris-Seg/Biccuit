@@ -8,6 +8,7 @@
  * @file graph.c
 */
 
+#include <string.h>
 #include "graph.h"
 #include "../utils/logging.h"
 #include "../parsing/parser.h"
@@ -16,13 +17,14 @@
 
 /////
 static void initialize_graph(Graph_t* graph);
-static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* token);
+static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* token, List_t* args);
 static void destroy_graph_node(void* entry);
 //static bool is_input_already_in_list(void* entry, void* data);
 static struct HTEntryGraphNode* find_existing_id(Graph_t* graph, struct ListEntryToken* token);
 
 static bool try_match_definition(Graph_t* graph, List_t* token_list, size_t* index, bool* failed);
 static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* index, bool* failed);
+static List_t* try_parse_arg_list(List_t* token_list, size_t* index, bool* failed);
 /////
 
 #define LOG_SEMANTIC_ERROR(lineno, error, ...)\
@@ -33,6 +35,11 @@ Graph_t create_graph(List_t* token_list) {
         .valid = true
     };
 
+    if(token_list == NULL) {
+        graph.valid = false;
+        return graph;
+    }
+
     initialize_graph(&graph);
 
     bool failed = false;
@@ -42,7 +49,8 @@ Graph_t create_graph(List_t* token_list) {
             !try_match_definition(&graph, token_list, &i, &failed) &&
             !try_match_connection(&graph, token_list, &i, &failed)
         ) {
-            ERROR("Graph creation failed with semantic errors.");
+            struct ListEntryToken* failed_token = (struct ListEntryToken*)list_get(token_list, i);
+            LOG_SEMANTIC_ERROR(failed_token->lineno, "Graph creation failed with semantic errors.");
             graph.valid = false;
             break;
         }
@@ -90,6 +98,8 @@ static bool try_match_definition(Graph_t* graph, List_t* token_list, size_t* ind
 
     //
 
+    *index += 2;
+
     switch(rop->tokenid) {
         case BT_ID: {
             struct HTEntryGraphNode* existing_node = find_existing_id(graph, rop);
@@ -104,93 +114,38 @@ static bool try_match_definition(Graph_t* graph, List_t* token_list, size_t* ind
             break;
         }
         case BT_NODE: {
+            size_t args_index = *index + 1;
+            List_t* args = try_parse_arg_list(token_list, &args_index, failed);
+
+            if(args != NULL)
+                *index = args_index;
+
             struct HTEntryGraphNode* new_node = &(struct HTEntryGraphNode) {
-                .node = create_graph_node(graph, rop)
+                .node = create_graph_node(graph, rop, args)
             };
 
             hashtable_insert(graph->definitions, lop->value, new_node);
             break;
         }
     }
-
-    *index += 2;
     
     return true;
 }
 
 static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* index, bool* failed) {
-    if(list_len(token_list) <= *index + 1)
+    size_t temp_index = *index;
+
+    if(list_len(token_list) <= temp_index + 1)
         return false; // Not a connection without a connection operator
 
-    struct ListEntryToken* lop = (struct ListEntryToken*)list_get(token_list, *index);
-    
+    struct ListEntryToken* lop = (struct ListEntryToken*)list_get(token_list, temp_index);
+
     if(lop->tokenid != BT_NODE && lop->tokenid != BT_ID)
         return false; // Not a connection without an node or id as the left operand
 
-    struct ListEntryToken* op = (struct ListEntryToken*)list_get(token_list, *index + 1);    
-
-    if(op->tokenid != BT_CONNECTOR)
-        return false; // Not a connection without a connector operator
-
-    // At this point it must be a connection so there's no going back
-
-    if(list_len(token_list) <= *index + 2) {
-        // No right operand, so it's a malformed connection
-        *failed = true;
-        LOG_SEMANTIC_ERROR(op->lineno, "Connection requires a right operand but no right operand was found.");
-        return false;
-    }
-
-    struct ListEntryToken* rop = (struct ListEntryToken*)list_get(token_list, *index + 2);  
-
-    if(rop->tokenid != BT_NODE && rop ->tokenid != BT_ID) {
-        // The right operand isn't of the right kind
-        *failed = true;
-        LOG_SEMANTIC_ERROR(rop->lineno, "Connection requires a node or id as the right operand but found %s.", token_to_name(rop->tokenid));
-        return false;
-    }
-
-    int rop_index = -1;
-    bool explicitly_indexed = false;
-
-    // Check if indexing exists
-    if(list_len(token_list) > *index + 3) {
-        struct ListEntryToken* indexer_open = (struct ListEntryToken*)list_get(token_list, *index + 3);
-
-        if(indexer_open->tokenid == BT_OPEN_INDEXER) {
-            // We have indexing for sure
-
-            if(list_len(token_list) <= *index + 5) {
-                *failed = true;
-                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Incomplete index formatting, expected opening indexer, number, closing indexer.");
-                return false;
-            }
-
-            struct ListEntryToken* num = (struct ListEntryToken*)list_get(token_list, *index + 4);  
-
-            if(num->tokenid != BT_NUMBER) {
-                *failed = true;
-                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected an integer number for indexing, got %s.", token_to_name(num->tokenid));
-                return false;
-            }
-
-            struct ListEntryToken* indexer_close = (struct ListEntryToken*)list_get(token_list, *index + 5);  
-
-            if(indexer_close->tokenid != BT_CLOSE_INDEXER) {
-                *failed = true;
-                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected closing indexer after number, got %s.", token_to_name(num->tokenid));
-                return false;
-            }
-
-            rop_index = atoi(num->value);
-            explicitly_indexed = true;
-        }
-    }
-
-    //
+    ++temp_index;
 
     GraphNode_t* lop_node = NULL;
-    GraphNode_t* rop_node = NULL;
 
     switch(lop->tokenid) {
         case BT_ID: {
@@ -207,11 +162,44 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
         }
 
         case BT_NODE: {
-            lop_node = create_graph_node(graph, lop);
+            List_t* args = try_parse_arg_list(token_list, &temp_index, failed);
+
+            if(args != NULL)
+                ++temp_index;
+            
+            lop_node = create_graph_node(graph, lop, args);
             break;
         }
 
     }
+
+    struct ListEntryToken* op = (struct ListEntryToken*)list_get(token_list, temp_index);    
+
+    if(op->tokenid != BT_CONNECTOR)
+        return false; // Not a connection without a connector operator
+
+    ++temp_index;
+
+    // At this point it must be a connection so there's no going back
+
+    if(list_len(token_list) <= temp_index) {
+        // No right operand, so it's a malformed connection
+        *failed = true;
+        LOG_SEMANTIC_ERROR(op->lineno, "Connection requires a right operand but no right operand was found.");
+        return false;
+    }
+
+    struct ListEntryToken* rop = (struct ListEntryToken*)list_get(token_list, temp_index);  
+
+    if(rop->tokenid != BT_NODE && rop ->tokenid != BT_ID) {
+        // The right operand isn't of the right kind
+        *failed = true;
+        LOG_SEMANTIC_ERROR(rop->lineno, "Connection requires a node or id as the right operand but found %s.", token_to_name(rop->tokenid));
+        return false;
+    }
+    //
+
+    GraphNode_t* rop_node = NULL;
 
     switch(rop->tokenid) {
         case BT_ID: {
@@ -228,10 +216,52 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
         }
 
         case BT_NODE: {
-            rop_node = create_graph_node(graph, rop);
+            size_t args_index = temp_index + 1;
+            List_t* args = try_parse_arg_list(token_list, &args_index, failed);
+
+            if(args != NULL)
+                temp_index = args_index;
+
+            rop_node = create_graph_node(graph, rop, args);
             break;
         }
+    }
 
+    int rop_index = -1;
+
+    // Check if indexing exists
+    if(list_len(token_list) > temp_index + 1) {
+        struct ListEntryToken* indexer_open = (struct ListEntryToken*)list_get(token_list, temp_index + 1);
+
+        if(indexer_open->tokenid == BT_OPEN_INDEXER) {
+            // We have indexing for sure
+
+            if(list_len(token_list) <= temp_index + 3) {
+                *failed = true;
+                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Incomplete index formatting, expected opening indexer, number, closing indexer.");
+                return false;
+            }
+
+            struct ListEntryToken* num = (struct ListEntryToken*)list_get(token_list, temp_index + 2);  
+
+            if(num->tokenid != BT_NUMBER) {
+                *failed = true;
+                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected an integer number for indexing, got %s.", token_to_name(num->tokenid));
+                return false;
+            }
+
+            struct ListEntryToken* indexer_close = (struct ListEntryToken*)list_get(token_list, temp_index + 3);  
+
+            if(indexer_close->tokenid != BT_CLOSE_INDEXER) {
+                *failed = true;
+                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected closing indexer after number, got %s.", token_to_name(num->tokenid));
+                return false;
+            }
+
+            rop_index = atoi(num->value);
+
+            temp_index += 3;
+        }
     }
 
     int rop_expected_inputs = rop_node->node_descriptor->expected_inputs;
@@ -262,7 +292,7 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
         input_port->node = lop_node;
     }
 
-    *index += explicitly_indexed ? 5 : 2;
+    *index = temp_index;
 
     return true;
 }
@@ -311,7 +341,74 @@ static struct HTEntryGraphNode* find_existing_id(Graph_t* graph, struct ListEntr
     return existing_node;
 }
 
-static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* token) {
+static List_t* try_parse_arg_list(List_t* token_list, size_t* index, bool* failed) {
+    if(list_len(token_list) <= *index) {
+        return NULL;
+    }
+
+    struct ListEntryToken* args_open = (struct ListEntryToken*)list_get(token_list, *index);
+
+    if(args_open->tokenid != BT_OPEN_ARGS) {
+        return NULL; // Not an argument list with no open args token
+    }
+
+    // At this point it must be an argument list so there's no going back
+
+    List_t* args = new_list(sizeof(struct ListEntryNodeArg));
+
+    struct ListEntryToken* current_arg_entry = args_open;
+
+    int arg_index = 1;
+    bool argument_pending = true;
+    int total_args = 0;
+    while(true) {
+        if(list_len(token_list) <= *index + arg_index) {
+            *failed = true;
+            LOG_SEMANTIC_ERROR(current_arg_entry->lineno, "Unterminated argument list.");
+            return NULL;
+        }
+
+        current_arg_entry = (struct ListEntryToken*)list_get(token_list, *index + arg_index);
+
+        if(current_arg_entry->tokenid == BT_CLOSE_ARGS && (!argument_pending || total_args == 0)) {
+            *index += arg_index;
+            return args;
+        } else if(current_arg_entry->tokenid == BT_ARG_SEPARATOR && !argument_pending) {
+            argument_pending = true;
+            ++arg_index;
+            continue;
+        } else if(current_arg_entry->tokenid == BT_NUMBER) {
+            struct ListEntryNodeArg arg = (struct ListEntryNodeArg) {
+                .node_arg = (NodeArg_t) {
+                    .int_val = atoi(current_arg_entry->value),
+                    .type = BCC_ARG_INT
+                }
+            };
+            list_append(args, &arg);
+            argument_pending = false;
+            ++total_args;
+        } else if(current_arg_entry->tokenid == BT_STRING) {
+            struct ListEntryNodeArg arg = (struct ListEntryNodeArg) {
+                .node_arg = (NodeArg_t) {
+                    .str_val = current_arg_entry->value,
+                    .type = BCC_ARG_STRING
+                }
+            };
+            list_append(args, &arg);
+            argument_pending = false;
+            ++total_args;
+        } else {
+            *failed = true;
+            LOG_SEMANTIC_ERROR(current_arg_entry->lineno, "Expected argument of type number or string but got %s instead.", token_to_name(current_arg_entry->tokenid));
+            return NULL;
+        }
+        ++arg_index;
+    }
+
+    return NULL;
+}
+
+static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* token, List_t* args) {
     GraphNode_t* new_node = (GraphNode_t*)safe_malloc(sizeof(GraphNode_t));
 
     int expected_inputs = token->node_descriptor->expected_inputs;
@@ -331,9 +428,10 @@ static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* tok
 
     new_node->datanode = (Node_t) {
         .data = NULL,
-        .output = BCC_WIRE_DEFAULT
+        .output = BCC_WIRE_DEFAULT,
+        .args = args
     };
-    
+
     new_node->true_output0 = BCC_WIRE_DEFAULT;
     new_node->true_output1 = BCC_WIRE_DEFAULT;
     new_node->node_descriptor = token->node_descriptor;

@@ -19,15 +19,22 @@ static string base_tokens[]  = {
     [BT_CONNECTOR] = "->",
     [BT_DEFINE] = ":",
     [BT_OPEN_INDEXER] = "[",
-    [BT_CLOSE_INDEXER] = "]"
+    [BT_CLOSE_INDEXER] = "]",
+    [BT_OPEN_ARGS] = "(",
+    [BT_CLOSE_ARGS] = ")",
+    [BT_ARG_SEPARATOR] = ","
 };
 
 static string token_names[] = {
     "connector operator",
     "indexer open",
     "indexer close",
+    "args open",
+    "args close",
+    "args separator",
     "definition operator",
     "number",
+    "string",
     "id",
     "node"
 };

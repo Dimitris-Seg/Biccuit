@@ -1,7 +1,20 @@
-A : NOT
-B : NOT
-DISP : DISPLAY
+nomnia_kala: TRUE
+nomnia_nostima: TRUE
+nomnia_smooth: FALSE
+and_gate1: AND
+and_gate2: AND
+or_gate1: OR
+not_gate1: NOT
+not_gate2: NOT
+not_gate3: NOT
 
-A -> B
-B -> A
-B -> DISP
+nomnia_kala -> and_gate1
+nomnia_nostima -> and_gate1[1]
+and_gate1 -> not_gate1
+not_gate1 -> or_gate1
+and_gate1 -> and_gate2
+nomnia_smooth -> not_gate2
+not_gate2 -> and_gate2[1]
+and_gate2 -> or_gate1[1]
+or_gate1 -> not_gate3
+not_gate3 -> DISPLAY("Alhtheia?")
