@@ -15,6 +15,7 @@
 /////
 static void evaluate_and(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_or(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
+static void evaluate_not(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_true(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void register_plugin();
 static void unregister_plugin();
@@ -38,6 +39,11 @@ static NodeDescriptor_t and_descriptor = (NodeDescriptor_t) {
 static NodeDescriptor_t or_descriptor = (NodeDescriptor_t) {
     .expected_inputs = 2,
     .evaluator = evaluate_or
+};
+
+static NodeDescriptor_t not_descriptor = (NodeDescriptor_t) {
+    .expected_inputs = 1,
+    .evaluator = evaluate_not
 };
 
 static NodeDescriptor_t constant_true_descriptor = (NodeDescriptor_t) {
@@ -67,6 +73,10 @@ static void evaluate_or(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_cou
     self->output = result;
 }
 
+static void evaluate_not(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
+    (void)input_count;
+    self->output = !inputs[0];
+}
 
 static void evaluate_true(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
     (void)inputs;
@@ -79,11 +89,13 @@ static void evaluate_true(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_c
 static void register_plugin() {
     register_node("AND", &and_descriptor);
     register_node("OR", &or_descriptor);
+    register_node("NOT", &not_descriptor);
     register_node("TRUE", &constant_true_descriptor);
 }
 
 static void unregister_plugin() {
     unregister_token("AND");
     unregister_token("OR");
+    unregister_token("NOT");
     unregister_token("TRUE");
 }

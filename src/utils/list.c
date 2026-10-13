@@ -25,14 +25,17 @@ List_t* new_list(size_t element_size) {
     return list;
 }
 
-List_t* new_preallocated_list(size_t element_size, size_t num_elements) {
+List_t* new_preallocated_list(size_t element_size, size_t num_elements, void* reference_entry) {
     List_t* list = (List_t*)safe_malloc(sizeof(List_t));
 
     list->element_size = element_size;
-    list->len = num_elements;
+    list->len = 0;
     list->size = num_elements;
 
     list->elements = safe_malloc(list->size * sizeof(void*));
+
+    for(size_t i = 0; i < num_elements; ++i)
+        list_append(list, reference_entry);
 
     return list;
 }

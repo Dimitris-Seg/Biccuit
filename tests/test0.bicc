@@ -1,10 +1,7 @@
-A: TRUE
-B : OR
-C : TRUE
-#B :EQ
-#C : NOT
-#D : AND
+A : NOT
+B : NOT
+DISP : DISPLAY
 
-A -> B[0]
-C -> B[1]
-B -> DISPLAY
+A -> B
+B -> A
+B -> DISP

@@ -39,7 +39,7 @@ struct ListEntry {
 
 List_t* new_list(size_t element_size);
 
-List_t* new_preallocated_list(size_t element_size, size_t num_elements);
+List_t* new_preallocated_list(size_t element_size, size_t num_elements, void* reference_entry);
 
 void list_destroy(List_t* list);
 

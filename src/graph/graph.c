@@ -18,7 +18,7 @@
 static void initialize_graph(Graph_t* graph);
 static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* token);
 static void destroy_graph_node(void* entry);
-static bool is_input_already_in_list(void* entry, void* data);
+//static bool is_input_already_in_list(void* entry, void* data);
 static struct HTEntryGraphNode* find_existing_id(Graph_t* graph, struct ListEntryToken* token);
 
 static bool try_match_definition(Graph_t* graph, List_t* token_list, size_t* index, bool* failed);
@@ -248,20 +248,18 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
         rop_index = 0; // Default to input 0
     }
 
-    if(rop_node->node_descriptor->expected_inputs == NODE_ANY_NUMBER_OF_INPUTS) {
-        // Ensure there are no duplicate inputs
-        if(!list_find(rop_node->inputs, is_input_already_in_list, lop_node)) {\
-            struct ListEntryGraphNode* new_node = &(struct ListEntryGraphNode) {
-                .node = lop_node
-            };
-            
-            list_append(rop_node->inputs, new_node);
-        }
+    if(rop_expected_inputs == NODE_ANY_NUMBER_OF_INPUTS) {
+        // Use this to ensure there are no duplicate inputs
+        //if(!list_find(rop_node->inputs, is_input_already_in_list, lop_node)) {
+
+        struct ListEntryGraphNode* new_node = &(struct ListEntryGraphNode) {
+            .node = lop_node
+        };
+        
+        list_append(rop_node->inputs, new_node);
     } else if (rop_expected_inputs != 0) {
         struct ListEntryGraphNode* input_port = list_get(rop_node->inputs, rop_index);
         input_port->node = lop_node;
-
-        DEBUG("Connected node to input port %d", rop_index);
     }
 
     *index += explicitly_indexed ? 5 : 2;
@@ -269,12 +267,33 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
     return true;
 }
 
-static bool is_input_already_in_list(void* entry, void* data) {
-    struct ListEntryGraphNode* graph_entry = (struct ListEntryGraphNode*)entry;
-    GraphNode_t* target_node = (GraphNode_t*)data;
+void debug_log_graph(Graph_t* graph) {
+    List_t* node_list = graph->node_list;
 
-    return graph_entry->node == target_node;
+    printf("\n** DEBUGGING GRAPH **\n\n");
+    for(size_t i = 0; i < list_len(node_list); ++i) {
+        struct ListEntryGraphNode* node = (struct ListEntryGraphNode*)list_get(node_list, i);
+        int expected_inputs = node->node->node_descriptor->expected_inputs;
+
+        DEBUG("Node at %p expects %d inputs:", node->node, expected_inputs);
+
+        for(int ch = 0; ch < expected_inputs; ++ch) {
+            struct ListEntryGraphNode* inp_node = (struct ListEntryGraphNode*)list_get(node->node->inputs, ch);
+            int expected_inp_inputs = inp_node->node != NULL ? inp_node->node->node_descriptor->expected_inputs : 0;
+            printf("\t*input at %p, expecting %d inputs.\n", inp_node->node, expected_inp_inputs);
+        }
+    }
+
+    printf("\n** END OF GRAPH DEBUG **\n");
 }
+
+// Use this to to ensure there's no duplicate inputs
+// static bool is_input_already_in_list(void* entry, void* data) {
+//     struct ListEntryGraphNode* graph_entry = (struct ListEntryGraphNode*)entry;
+//     GraphNode_t* target_node = (GraphNode_t*)data;
+
+//     return graph_entry->node == target_node;
+// }
 
 static struct HTEntryGraphNode* find_existing_id(Graph_t* graph, struct ListEntryToken* token) {
     struct HTEntryGraphNode* existing_node = hashtable_find(graph->definitions, token->value);
@@ -297,14 +316,12 @@ static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* tok
 
     int expected_inputs = token->node_descriptor->expected_inputs;
     if(expected_inputs > 0) {
-        new_node->inputs = new_preallocated_list(sizeof(struct ListEntryGraphNode), expected_inputs);
+        struct ListEntryGraphNode* reference_entry = &(struct ListEntryGraphNode) {
+            .destroy_element = NULL,
+            .node = NULL
+        };
 
-        for(int i = 0; i < expected_inputs; ++i) {
-            struct ListEntryGraphNode* entry = (struct ListEntryGraphNode*)list_get(new_node->inputs, i);
-            *entry = (struct ListEntryGraphNode) {
-                .node = NULL
-            };
-        }
+        new_node->inputs = new_preallocated_list(sizeof(struct ListEntryGraphNode), expected_inputs, reference_entry);
     } else if(expected_inputs == NODE_ANY_NUMBER_OF_INPUTS) {
         // Variadic input list (any number of inputs)
         new_node->inputs = new_list(sizeof(struct ListEntryGraphNode));
@@ -312,6 +329,11 @@ static GraphNode_t* create_graph_node(Graph_t* graph, struct ListEntryToken* tok
         new_node->inputs = NULL;
     }
 
+    new_node->datanode = (Node_t) {
+        .data = NULL,
+        .output = BCC_WIRE_DEFAULT
+    };
+    
     new_node->true_output0 = BCC_WIRE_DEFAULT;
     new_node->true_output1 = BCC_WIRE_DEFAULT;
     new_node->node_descriptor = token->node_descriptor;

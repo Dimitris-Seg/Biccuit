@@ -28,4 +28,5 @@
 #define INFO(msg, ...) printf(GRN"[INFO]"COLOR_RESET " " msg"\n", ##__VA_ARGS__)
 #define WARN(msg, ...) printf(YEL"[WARNING]"COLOR_RESET " " msg"\n", ##__VA_ARGS__)
 #define ERROR(msg, ...) printf(RED"[ERROR]"COLOR_RESET " " msg"\n", ##__VA_ARGS__)
+#define NEWLINE() printf("\n");
 #endif

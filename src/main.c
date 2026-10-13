@@ -64,10 +64,11 @@ int main(int argc, string argv[]) {
 
     List_t* parsed_tokens = parse_circuit(input_filename);
 
-    for(size_t i = 0; i < list_len(parsed_tokens); ++i) {
-        struct ListEntryToken* token = list_get(parsed_tokens, i);
-        INFO("Token #%lu: %d -> '%s'", i, token->tokenid, token->value);
-    }
+    // Uncomment for a debug dump of all partsed tokens
+    // for(size_t i = 0; i < list_len(parsed_tokens); ++i) {
+    //     struct ListEntryToken* token = list_get(parsed_tokens, i);
+    //     INFO("Token #%lu: %d -> '%s'", i, token->tokenid, token->value);
+    // }
 
     Graph_t graph = create_graph(parsed_tokens);
 
@@ -75,6 +76,11 @@ int main(int argc, string argv[]) {
         ERROR("Graph is invalid, aborting execution...");
         return 1;
     }
+
+    //debug_log_graph(&graph);
+
+    NEWLINE();
+    INFO(">> Starting execution <<\n");
 
     if(config_step) {
         // Handle stepping

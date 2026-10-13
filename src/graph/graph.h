@@ -44,4 +44,6 @@ struct HTEntryGraphNode {
 
 Graph_t create_graph(List_t* token_list);
 
+void debug_log_graph(Graph_t* graph);
+
 #endif

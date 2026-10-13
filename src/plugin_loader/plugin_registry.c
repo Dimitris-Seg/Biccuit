@@ -49,6 +49,8 @@ void plugin_registry_add_plugin(Plugin_t plugin, string path) {
     };
 
     list_append(plugin_registry, &new_plugin);
+
+    DEBUG("Plugin '%s' loaded from %s.", plugin.name, path);
 }
 
 void plugin_registry_register_all() {
