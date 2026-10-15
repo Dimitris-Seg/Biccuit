@@ -1,0 +1,10 @@
+A: TRUE B: TRUE
+notA: NOT notB: NOT a_and_notb: AND nota_and_b: AND sum: OR carry: AND
+
+A -> notA B -> notB
+
+A -> a_and_notb notB -> a_and_notb[1] notA -> nota_and_b B -> nota_and_b[1] a_and_notb -> sum nota_and_b -> sum[1]
+
+A -> carry B -> carry[1]
+
+sum -> DISPLAY("SUM") carry -> DISPLAY("CARRY")

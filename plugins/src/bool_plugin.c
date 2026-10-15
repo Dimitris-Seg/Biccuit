@@ -15,6 +15,7 @@
 /////
 static void evaluate_and(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_or(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
+static void evaluate_xor(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_not(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_true(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_false(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
@@ -40,6 +41,11 @@ static NodeDescriptor_t and_descriptor = (NodeDescriptor_t) {
 static NodeDescriptor_t or_descriptor = (NodeDescriptor_t) {
     .expected_inputs = 2,
     .evaluator = evaluate_or
+};
+
+static NodeDescriptor_t xor_descriptor = (NodeDescriptor_t) {
+    .expected_inputs = 2,
+    .evaluator = evaluate_xor
 };
 
 static NodeDescriptor_t not_descriptor = (NodeDescriptor_t) {
@@ -79,6 +85,16 @@ static void evaluate_or(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_cou
     self->output = result;
 }
 
+static void evaluate_xor(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
+    bool result = inputs[0];
+
+    for(int i = 1; i < input_count; ++i) {
+        result = result != inputs[i];
+    }
+
+    self->output = result;
+}
+
 static void evaluate_not(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
     (void)input_count;
     self->output = !inputs[0];
@@ -101,6 +117,7 @@ static void evaluate_false(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_
 static void register_plugin() {
     register_node("AND", &and_descriptor);
     register_node("OR", &or_descriptor);
+    register_node("XOR", &xor_descriptor);
     register_node("NOT", &not_descriptor);
     register_node("TRUE", &constant_true_descriptor);
     register_node("FALSE", &constant_false_descriptor);
@@ -109,6 +126,7 @@ static void register_plugin() {
 static void unregister_plugin() {
     unregister_token("AND");
     unregister_token("OR");
+    unregister_token("XOR");
     unregister_token("NOT");
     unregister_token("TRUE");
     unregister_token("FALSE");

@@ -1,0 +1,20 @@
+R: FALSE
+S: FALSE
+
+OR_1: OR
+OR_2: OR
+
+NOT_1: NOT
+NOT_2: NOT
+
+OR_1 -> NOT_1
+OR_2 -> NOT_2
+
+R -> OR_1[0]
+S -> OR_2[1]
+
+NOT_1 -> OR_2[0]
+NOT_2 -> OR_1[1]
+
+NOT_1 -> DISPLAY("Q")
+NOT_2 -> DISPLAY("NOT Q")
