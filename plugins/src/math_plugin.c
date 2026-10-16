@@ -137,18 +137,18 @@ static void evaluate_number(Node_t* self, const BCC_WIRE_TYPE* inputs, int input
 
 static void register_plugin() {
     register_node("ADD", &add_descriptor);
-    register_node("SUBTRACT", &subtract_descriptor);
-    register_node("OPPOSITE", &opposite_descriptor);
-    register_node("MULTIPLY", &multiply_descriptor);
-    register_node("DIVIDE", &divide_descriptor);
+    register_node("SUB", &subtract_descriptor);
+    register_node("OPP", &opposite_descriptor);
+    register_node("MUL", &multiply_descriptor);
+    register_node("DIV", &divide_descriptor);
     register_node("NUM", &number_descriptor);
 }
 
 static void unregister_plugin() {
     unregister_token("ADD");
-    unregister_token("SUBTRACT");
-    unregister_token("OPPOSITE");
-    unregister_token("MULTIPLY");
-    unregister_token("DIVIDE");
+    unregister_token("SUB");
+    unregister_token("OPP");
+    unregister_token("MUL");
+    unregister_token("DIV");
     unregister_token("NUM");
 }

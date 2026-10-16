@@ -1,0 +1,61 @@
+# --- Setup Controls & Constants ---
+ENABLE: TRUE
+
+# --- ALU Input Arguments (Change these to test different math!) ---
+A: NUM(12)
+B: NUM(4)
+
+# --- Operation Selector Register ---
+# Change the initialization value (0, 1, 2, or 3) to switch modes!
+MODE: REG(3)           
+ENABLE -> MODE[1]
+
+# ========================================================
+# COMBINATIONAL EXECUTION UNITS (Calculate all options at once)
+# ========================================================
+
+# Mode 0: ADD Unit
+VAL_ADD: ADD
+A -> VAL_ADD[0]
+B -> VAL_ADD[1]
+
+# Mode 1: MUL Unit
+VAL_MUL: MUL
+A -> VAL_MUL[0]
+B -> VAL_MUL[1]
+
+# Mode 2: GT Unit
+VAL_GT: GT
+A -> VAL_GT[0]
+B -> VAL_GT[1]
+
+# Mode 3: DIV Unit (Safe to use since B=4 is hardcoded and never 0)
+VAL_DIV: DIV
+A -> VAL_DIV[0]
+B -> VAL_DIV[1]
+
+# ========================================================
+# THE ALU MODE MULTIPLEXER
+# ========================================================
+# Your dynamic multi-way MUX fits perfectly here!
+# Selector = inputs[0] (MODE)
+# Choice 0 = inputs[1] (Addition)
+# Choice 1 = inputs[2] (Multiplication)
+# Choice 2 = inputs[3] (Greater Than)
+# Choice 3 = inputs[4] (Division)
+ALU_MUX: MUX
+MODE -> ALU_MUX[0]
+VAL_ADD -> ALU_MUX[1]
+VAL_MUL -> ALU_MUX[2]
+VAL_GT -> ALU_MUX[3]
+VAL_DIV -> ALU_MUX[4]
+
+# ========================================================
+# FEEDBACK LOOP & MONITOR
+# ========================================================
+# Keeps the mode latched
+MODE -> MODE[0]
+
+# Display the active mode configuration and the resulting answer
+MODE -> DISPLAY("Active ALU Mode (0=ADD, 1=MUL, 2=GT, 3=DIV)")
+ALU_MUX -> DISPLAY("ALU Output Result")

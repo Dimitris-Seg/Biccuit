@@ -1,0 +1,31 @@
+# Calculate polynomial value
+
+X: NUM(2)
+A: NUM(1)
+B: NUM(2)
+C: NUM(3)
+
+X2: MUL
+
+AX2: MUL
+BX1: MUL
+
+X -> X2
+X -> X2[1]
+
+A -> AX2
+X2 -> AX2[1]
+
+B -> BX1
+X -> BX1[1]
+
+ADD1: ADD
+ADD2: ADD
+
+AX2 -> ADD1
+BX1 -> ADD1[1]
+
+ADD1 -> ADD2
+C -> ADD2[1]
+
+ADD2 -> DISPLAY("Result")

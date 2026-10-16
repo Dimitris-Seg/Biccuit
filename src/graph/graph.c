@@ -278,13 +278,22 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
         rop_index = 0; // Default to input 0
     }
 
-    if(rop_expected_inputs == NODE_ANY_NUMBER_OF_INPUTS) {
+    if(rop_expected_inputs == NODE_ANY_NUMBER_OF_INPUTS && list_len(rop_node -> inputs) <= (size_t)rop_index) {
         // Use this to ensure there are no duplicate inputs
         //if(!list_find(rop_node->inputs, is_input_already_in_list, lop_node)) {
 
         struct ListEntryGraphNode* new_node = &(struct ListEntryGraphNode) {
             .node = lop_node
         };
+
+        struct ListEntryGraphNode* default_entry = &(struct ListEntryGraphNode) {
+            .destroy_element = NULL,
+            .node = NULL
+        };
+
+        while(list_len(rop_node -> inputs) < (size_t)rop_index) {
+            list_append(rop_node -> inputs, default_entry);
+        }
         
         list_append(rop_node->inputs, new_node);
     } else if (rop_expected_inputs != 0) {

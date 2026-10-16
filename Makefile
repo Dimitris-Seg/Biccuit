@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g -Isrc -Iutils -D_DEFAULT_SOURCE
-LDFLAGS = -ldl
+LDFLAGS = -ldl -lm
 
 BUILD_DIR = build
 PLUGIN_DIR = plugins
