@@ -19,6 +19,7 @@ static void evaluate_subtract(Node_t* self, const BCC_WIRE_TYPE* inputs, int inp
 static void evaluate_opposite(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_multiply(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_divide(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
+static void evaluate_mod(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void evaluate_number(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count);
 static void register_plugin();
 static void unregister_plugin();
@@ -57,6 +58,11 @@ static NodeDescriptor_t multiply_descriptor = (NodeDescriptor_t) {
 static NodeDescriptor_t divide_descriptor = (NodeDescriptor_t) {
     .expected_inputs = 2,
     .evaluator = evaluate_divide
+};
+
+static NodeDescriptor_t mod_descriptor = (NodeDescriptor_t) {
+    .expected_inputs = 2,
+    .evaluator = evaluate_mod
 };
 
 static NodeDescriptor_t number_descriptor = (NodeDescriptor_t) {
@@ -116,6 +122,22 @@ static void evaluate_divide(Node_t* self, const BCC_WIRE_TYPE* inputs, int input
     self->output = result;
 }
 
+static void evaluate_mod(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
+    (void)input_count;
+
+    int result = 0;
+    int b = inputs[1];
+
+    if(b != 0) {
+        result = inputs[0] % b;
+    } else {
+        ERROR("Mod: Division by 0, result is undefined");
+        result = 0;
+    } 
+    
+    self->output = result;
+}
+
 static void evaluate_number(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
     (void)inputs;
     (void)input_count;
@@ -141,6 +163,7 @@ static void register_plugin() {
     register_node("OPP", &opposite_descriptor);
     register_node("MUL", &multiply_descriptor);
     register_node("DIV", &divide_descriptor);
+    register_node("MOD", &mod_descriptor);
     register_node("NUM", &number_descriptor);
 }
 
@@ -150,5 +173,6 @@ static void unregister_plugin() {
     unregister_token("OPP");
     unregister_token("MUL");
     unregister_token("DIV");
+    unregister_token("MOD");
     unregister_token("NUM");
 }
