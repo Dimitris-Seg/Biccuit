@@ -1,0 +1,25 @@
+# Part 1: Check if numbers are even
+VAL: NUM(5) # This is the number that will be tested for evenness
+MODTEST: MOD
+IS_EVEN: EQ
+
+VAL -> MODTEST
+NUM(2) -> MODTEST[1]
+
+MODTEST -> IS_EVEN
+NUM(0) -> IS_EVEN[1]
+
+IS_EVEN -> DISPLAY("Is number even?")
+
+# Part 2: Display odd numbers as their inverse
+INV: OPP
+SWITCH: MUX
+
+VAL -> INV
+INV -> SWITCH[1]
+
+VAL -> SWITCH[2]
+
+IS_EVEN -> SWITCH
+
+SWITCH -> DISPLAY("Final value")
