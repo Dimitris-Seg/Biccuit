@@ -25,6 +25,7 @@ static struct HTEntryGraphNode* find_existing_id(Graph_t* graph, struct ListEntr
 static bool try_match_definition(Graph_t* graph, List_t* token_list, size_t* index, bool* failed);
 static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* index, bool* failed);
 static List_t* try_parse_arg_list(List_t* token_list, size_t* index, bool* failed);
+GraphNode_t* try_match_node(Graph_t* graph, List_t* token_list, size_t* index, bool* failed, struct ListEntryToken* node_entry);
 /////
 
 #define LOG_SEMANTIC_ERROR(lineno, error, ...)\
@@ -145,165 +146,166 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
 
     ++temp_index;
 
-    GraphNode_t* lop_node = NULL;
+    size_t original_lop_args_index = temp_index;
+    GraphNode_t* lop_node = try_match_node(graph, token_list, &temp_index, failed, lop);
 
-    switch(lop->tokenid) {
-        case BT_ID: {
-            struct HTEntryGraphNode* existing_node = find_existing_id(graph, lop);
+    if(lop_node != NULL) {
+        if(temp_index != original_lop_args_index)
+            ++temp_index;
+    } else {
+        return false;
+    }
 
-            if(existing_node == NULL) {
-                *failed = true;
-                return false;
-            }
+    int total_connectors = 0;
 
-            lop_node = existing_node->node;
+    while(true) {
+        struct ListEntryToken* op = (struct ListEntryToken*)list_get(token_list, temp_index);    
 
-            break;
+        if(op->tokenid != BT_CONNECTOR)
+            return (total_connectors > 0);
+
+        ++temp_index;
+        ++total_connectors;
+
+        // At this point it must be a connection so there's no going back
+
+        if(list_len(token_list) <= temp_index) {
+            // No right operand, so it's a malformed connection
+            *failed = true;
+            LOG_SEMANTIC_ERROR(op->lineno, "Connection requires a right operand but no right operand was found.");
+            return false;
         }
 
-        case BT_NODE: {
-            List_t* args = try_parse_arg_list(token_list, &temp_index, failed);
+        struct ListEntryToken* rop = (struct ListEntryToken*)list_get(token_list, temp_index);  
 
-            if(args != NULL)
-                ++temp_index;
+        if(rop->tokenid != BT_NODE && rop ->tokenid != BT_ID) {
+            // The right operand isn't of the right kind
+            *failed = true;
+            LOG_SEMANTIC_ERROR(rop->lineno, "Connection requires a node or id as the right operand but found %s.", token_to_name(rop->tokenid));
+            return false;
+        }
+        //
+
+        size_t original_rop_args_index = temp_index + 1;
+        size_t rop_args_index = original_rop_args_index;
+        GraphNode_t* rop_node = try_match_node(graph, token_list, &rop_args_index, failed, rop);
+
+        if(rop_node != NULL) {
+            if(rop_args_index != original_rop_args_index)
+                temp_index = rop_args_index;
+        } else {
+            return false;
+        }
+
+        int rop_index = -1;
+
+        // Check if indexing exists
+        if(list_len(token_list) > temp_index + 1) {
+            struct ListEntryToken* indexer_open = (struct ListEntryToken*)list_get(token_list, temp_index + 1);
+
+            if(indexer_open->tokenid == BT_OPEN_INDEXER) {
+                // We have indexing for sure
+
+                if(list_len(token_list) <= temp_index + 3) {
+                    *failed = true;
+                    LOG_SEMANTIC_ERROR(indexer_open->lineno, "Incomplete index formatting, expected opening indexer, number, closing indexer.");
+                    return false;
+                }
+
+                struct ListEntryToken* num = (struct ListEntryToken*)list_get(token_list, temp_index + 2);  
+
+                if(num->tokenid != BT_NUMBER) {
+                    *failed = true;
+                    LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected an integer number for indexing, got %s.", token_to_name(num->tokenid));
+                    return false;
+                }
+
+                struct ListEntryToken* indexer_close = (struct ListEntryToken*)list_get(token_list, temp_index + 3);  
+
+                if(indexer_close->tokenid != BT_CLOSE_INDEXER) {
+                    *failed = true;
+                    LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected closing indexer after number, got %s.", token_to_name(num->tokenid));
+                    return false;
+                }
+
+                rop_index = atoi(num->value);
+
+                temp_index += 3;
+            }
+        }
+
+        int rop_expected_inputs = rop_node->node_descriptor->expected_inputs;
+
+        if(rop_expected_inputs > 0 && rop_index >= rop_expected_inputs) {
+            *failed = true;
+            LOG_SEMANTIC_ERROR(rop->lineno, "Node '%s' expects %d inputs but input at index %d was accessed.", rop->value, rop_expected_inputs, rop_index);
+            return false;
+        } else if(rop_expected_inputs == 0) {
+            *failed = true;
+            LOG_SEMANTIC_ERROR(rop->lineno, "Node '%s' expects no inputs and cannot be indexed", rop->value);
+            return false;
+        } else if(rop_index == -1) {
+            rop_index = 0; // Default to input 0
+        }
+
+        if(rop_expected_inputs == NODE_ANY_NUMBER_OF_INPUTS && list_len(rop_node -> inputs) <= (size_t)rop_index) {
+            // Use this to ensure there are no duplicate inputs
+            //if(!list_find(rop_node->inputs, is_input_already_in_list, lop_node)) {
+
+            struct ListEntryGraphNode* new_node = &(struct ListEntryGraphNode) {
+                .node = lop_node
+            };
+
+            struct ListEntryGraphNode* default_entry = &(struct ListEntryGraphNode) {
+                .destroy_element = NULL,
+                .node = NULL
+            };
+
+            while(list_len(rop_node -> inputs) < (size_t)rop_index) {
+                list_append(rop_node -> inputs, default_entry);
+            }
             
-            lop_node = create_graph_node(graph, lop, args);
-            break;
+            list_append(rop_node->inputs, new_node);
+        } else if (rop_expected_inputs != 0) {
+            struct ListEntryGraphNode* input_port = list_get(rop_node->inputs, rop_index);
+            input_port->node = lop_node;
         }
 
+        *index = temp_index;
+
+        // For the next connection if there is any
+        rop_node = lop_node;
     }
-
-    struct ListEntryToken* op = (struct ListEntryToken*)list_get(token_list, temp_index);    
-
-    if(op->tokenid != BT_CONNECTOR)
-        return false; // Not a connection without a connector operator
-
-    ++temp_index;
-
-    // At this point it must be a connection so there's no going back
-
-    if(list_len(token_list) <= temp_index) {
-        // No right operand, so it's a malformed connection
-        *failed = true;
-        LOG_SEMANTIC_ERROR(op->lineno, "Connection requires a right operand but no right operand was found.");
-        return false;
-    }
-
-    struct ListEntryToken* rop = (struct ListEntryToken*)list_get(token_list, temp_index);  
-
-    if(rop->tokenid != BT_NODE && rop ->tokenid != BT_ID) {
-        // The right operand isn't of the right kind
-        *failed = true;
-        LOG_SEMANTIC_ERROR(rop->lineno, "Connection requires a node or id as the right operand but found %s.", token_to_name(rop->tokenid));
-        return false;
-    }
-    //
-
-    GraphNode_t* rop_node = NULL;
-
-    switch(rop->tokenid) {
-        case BT_ID: {
-            struct HTEntryGraphNode* existing_node = find_existing_id(graph, rop);
-
-            if(existing_node == NULL) {
-                *failed = true;
-                return false;
-            }
-
-            rop_node = existing_node->node;
-
-            break;
-        }
-
-        case BT_NODE: {
-            size_t args_index = temp_index + 1;
-            List_t* args = try_parse_arg_list(token_list, &args_index, failed);
-
-            if(args != NULL)
-                temp_index = args_index;
-
-            rop_node = create_graph_node(graph, rop, args);
-            break;
-        }
-    }
-
-    int rop_index = -1;
-
-    // Check if indexing exists
-    if(list_len(token_list) > temp_index + 1) {
-        struct ListEntryToken* indexer_open = (struct ListEntryToken*)list_get(token_list, temp_index + 1);
-
-        if(indexer_open->tokenid == BT_OPEN_INDEXER) {
-            // We have indexing for sure
-
-            if(list_len(token_list) <= temp_index + 3) {
-                *failed = true;
-                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Incomplete index formatting, expected opening indexer, number, closing indexer.");
-                return false;
-            }
-
-            struct ListEntryToken* num = (struct ListEntryToken*)list_get(token_list, temp_index + 2);  
-
-            if(num->tokenid != BT_NUMBER) {
-                *failed = true;
-                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected an integer number for indexing, got %s.", token_to_name(num->tokenid));
-                return false;
-            }
-
-            struct ListEntryToken* indexer_close = (struct ListEntryToken*)list_get(token_list, temp_index + 3);  
-
-            if(indexer_close->tokenid != BT_CLOSE_INDEXER) {
-                *failed = true;
-                LOG_SEMANTIC_ERROR(indexer_open->lineno, "Expected closing indexer after number, got %s.", token_to_name(num->tokenid));
-                return false;
-            }
-
-            rop_index = atoi(num->value);
-
-            temp_index += 3;
-        }
-    }
-
-    int rop_expected_inputs = rop_node->node_descriptor->expected_inputs;
-
-    if(rop_expected_inputs > 0 && rop_index >= rop_expected_inputs) {
-        *failed = true;
-        LOG_SEMANTIC_ERROR(rop->lineno, "Node '%s' expects %d inputs but input at index %d was accessed.", rop->value, rop_expected_inputs, rop_index);
-        return false;
-    } else if(rop_expected_inputs == 0) {
-        *failed = true;
-        LOG_SEMANTIC_ERROR(rop->lineno, "Node '%s' expects no inputs and cannot be indexed", rop->value);
-        return false;
-    } else if(rop_index == -1) {
-        rop_index = 0; // Default to input 0
-    }
-
-    if(rop_expected_inputs == NODE_ANY_NUMBER_OF_INPUTS && list_len(rop_node -> inputs) <= (size_t)rop_index) {
-        // Use this to ensure there are no duplicate inputs
-        //if(!list_find(rop_node->inputs, is_input_already_in_list, lop_node)) {
-
-        struct ListEntryGraphNode* new_node = &(struct ListEntryGraphNode) {
-            .node = lop_node
-        };
-
-        struct ListEntryGraphNode* default_entry = &(struct ListEntryGraphNode) {
-            .destroy_element = NULL,
-            .node = NULL
-        };
-
-        while(list_len(rop_node -> inputs) < (size_t)rop_index) {
-            list_append(rop_node -> inputs, default_entry);
-        }
-        
-        list_append(rop_node->inputs, new_node);
-    } else if (rop_expected_inputs != 0) {
-        struct ListEntryGraphNode* input_port = list_get(rop_node->inputs, rop_index);
-        input_port->node = lop_node;
-    }
-
-    *index = temp_index;
 
     return true;
+}
+
+GraphNode_t* try_match_node(Graph_t* graph, List_t* token_list, size_t* args_index, bool* failed, struct ListEntryToken* node_entry) {
+    GraphNode_t* node = NULL;
+
+    switch(node_entry->tokenid) {
+        case BT_ID: {
+            struct HTEntryGraphNode* existing_node = find_existing_id(graph, node_entry);
+
+            if(existing_node == NULL) {
+                *failed = true;
+                return NULL;
+            }
+
+            node = existing_node->node;
+
+            break;
+        }
+
+        case BT_NODE: {
+            List_t* args = try_parse_arg_list(token_list, args_index, failed);
+            node = create_graph_node(graph, node_entry, args);
+            break;
+        }
+
+    }
+
+    return node;
 }
 
 void debug_log_graph(Graph_t* graph) {
