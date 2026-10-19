@@ -1,0 +1,6 @@
+biccuit
+.vscode
+/build
+
+*.o
+*.so
