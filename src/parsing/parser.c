@@ -72,9 +72,7 @@ List_t* parse_circuit(string filename) {
                 in_string = false;
                 flush_and_clear(buffer, token_list, lineno, BT_STRING);
                 continue;
-            }else if(in_string) {
-                c = resolve_escape_character(c);
-            } else {
+            } else if(!in_string){
                 in_string = !in_string;
                 flush_and_clear(buffer, token_list, lineno, BCC_NO_TOKEN);
                 continue;
@@ -82,8 +80,21 @@ List_t* parse_circuit(string filename) {
         } 
 
         if(in_string) {
-            resizable_string_append(buffer, c);
             ++linepos;
+
+            if(c == STRING_ESCAPE_IDENTIFIER && old_c != STRING_ESCAPE_IDENTIFIER) {
+                old_c = c;
+                continue;
+            }
+
+            
+            if(old_c == STRING_ESCAPE_IDENTIFIER) {
+                old_c = '\0';
+                c = resolve_escape_character(c);
+            }
+            
+            resizable_string_append(buffer, c);
+            
             continue;
         }
 

@@ -159,6 +159,9 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
     int total_connectors = 0;
 
     while(true) {
+        if(list_len(token_list) <= temp_index)
+            return (total_connectors > 0);
+
         struct ListEntryToken* op = (struct ListEntryToken*)list_get(token_list, temp_index);    
 
         if(op->tokenid != BT_CONNECTOR)
@@ -274,8 +277,13 @@ static bool try_match_connection(Graph_t* graph, List_t* token_list, size_t* ind
         *index = temp_index;
 
         // For the next connection if there is any
-        rop_node = lop_node;
+        lop_node = rop_node;
+
+        // Advance to check for the next connection if there is any
+        ++temp_index;
     }
+
+    DEBUG("Completed at index %lu", *index);
 
     return true;
 }

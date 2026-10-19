@@ -12,11 +12,9 @@ NUM(0) -> IS_EVEN[1]
 IS_EVEN -> DISPLAY("Is number even?")
 
 # Part 2: Display odd numbers as their inverse
-INV: OPP
 SWITCH: MUX
 
-VAL -> INV
-INV -> SWITCH[1]
+VAL -> OPP -> SWITCH[1]
 
 VAL -> SWITCH[2]
 
