@@ -115,7 +115,10 @@ int main(int argc, string argv[]) {
 static void on_shutdown() {
     abort_graph_execution();
 
+    NEWLINE();
     INFO(">> Stopping execution <<\n");
+    
+    exit(1);
 }
 
 static void print_arg_error() {
