@@ -20,7 +20,6 @@
 #define TERM_RAW_MODE_FLAGS ~(ECHO | ICANON | ISIG)
 
 typedef enum TerminalMode TerminalMode_t;
-typedef void(*TerminalShutdownCallback)(void);
 
 enum TerminalMode {
     TM_CANON,

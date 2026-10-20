@@ -36,7 +36,7 @@ Plugin_t provide_plugin() {
 // Descriptors //
 
 static NodeDescriptor_t add_descriptor = (NodeDescriptor_t) {
-    .expected_inputs = 2,
+    .expected_inputs = -1,
     .evaluator = evaluate_add
 };
 
@@ -51,7 +51,7 @@ static NodeDescriptor_t opposite_descriptor = (NodeDescriptor_t) {
 };
 
 static NodeDescriptor_t multiply_descriptor = (NodeDescriptor_t) {
-    .expected_inputs = 2,
+    .expected_inputs = -1,
     .evaluator = evaluate_multiply
 };
 
@@ -98,9 +98,9 @@ static void evaluate_opposite(Node_t* self, const BCC_WIRE_TYPE* inputs, int inp
 }
 
 static void evaluate_multiply(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
-    int result = inputs[0];
+    int result = input_count > 0;
 
-    for(int i = 1; i < input_count; ++i) {
+    for(int i = 0; i < input_count; ++i) {
         result *= inputs[i];
     }
 

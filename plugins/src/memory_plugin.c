@@ -31,7 +31,7 @@ Plugin_t provide_plugin() {
 // Descriptors //
 
 static NodeDescriptor_t reg_descriptor = (NodeDescriptor_t) {
-    .expected_inputs = 2,
+    .expected_inputs = 3,
     .evaluator = evaluate_reg
 };
 
@@ -60,6 +60,20 @@ static void evaluate_reg(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_co
 
     if(inputs[1]) {
         *((int*)self->data) = inputs[0];
+    }
+
+    if(inputs[2]) {
+        int reset_val = 0;
+
+        if(self->args != NULL && list_len(self->args) > 0) {
+            struct ListEntryNodeArg* arg = list_get(self->args, 0);
+    
+            if(arg->node_arg.type == BCC_ARG_INT) {
+                reset_val = arg->node_arg.int_val;
+            }
+        }
+
+        *((int*)self->data) = reset_val;
     }
 
     self->output = *((int*)self->data);

@@ -324,8 +324,6 @@ void debug_log_graph(Graph_t* graph) {
         struct ListEntryGraphNode* node = (struct ListEntryGraphNode*)list_get(node_list, i);
         int expected_inputs = node->node->node_descriptor->expected_inputs;
 
-        DEBUG("Node at %p expects %d inputs:", node->node, expected_inputs);
-
         for(int ch = 0; ch < expected_inputs; ++ch) {
             struct ListEntryGraphNode* inp_node = (struct ListEntryGraphNode*)list_get(node->node->inputs, ch);
             int expected_inp_inputs = inp_node->node != NULL ? inp_node->node->node_descriptor->expected_inputs : 0;

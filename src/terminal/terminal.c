@@ -9,6 +9,7 @@
 */
 
 #include "terminal.h"
+#include "../runtime/runtime.h"
 
 /////
 static void atexit_terminal_handler();
@@ -61,4 +62,5 @@ void set_terminal_mode(TerminalMode_t mode) {
 
 static void atexit_terminal_handler() {
     set_terminal_mode(TM_CANON);
+    abort_graph_execution();
 }

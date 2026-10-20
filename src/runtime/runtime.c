@@ -8,17 +8,22 @@
  * @file runtime.c
 */
 
-#include "runtime.h"
 #include <stdio.h>
+#include "input/polling.h"
+#include "runtime.h"
 /////
+static void execute_graph_tick(Graph_t* graph, bool flip_bit, bool poll_input);
 static BCC_WIRE_TYPE get_true_output(GraphNode_t* node, bool flip_bit);
 static void set_flip_output(GraphNode_t* node, BCC_WIRE_TYPE value, bool flip_bit);
 /////
 
 bool graph_execution_aborted = false;
 
-void execute_graph_tick(Graph_t* graph, bool flip_bit) {
+static void execute_graph_tick(Graph_t* graph, bool flip_bit, bool poll_input) {
     static int inputs[BCC_MAX_INPUTS];
+
+    if(poll_input)
+        _poll_keyboard();
 
     for(size_t i = 0; i < list_len(graph->node_list); ++i) {
         struct ListEntryGraphNode* entry_node = (struct ListEntryGraphNode*)list_get(graph->node_list, i);
@@ -47,21 +52,27 @@ void execute_graph_tick(Graph_t* graph, bool flip_bit) {
     }
 }
 
-void execute_n_graph_ticks(Graph_t* graph, int n) {
+void execute_n_graph_ticks(Graph_t* graph, int n, bool poll_input) {
     bool flip_bit = false;
-    while(n > 0) {
-        execute_graph_tick(graph, flip_bit);
+    while(n > 0 && !graph_execution_aborted) {
+        execute_graph_tick(graph, flip_bit, poll_input);
         flip_bit = !flip_bit;
         --n;
     }
 }
 
-void execute_graph_forever(Graph_t* graph) {
+void execute_graph_forever(Graph_t* graph, useconds_t tick_delay, bool poll_input) {
     bool flip_bit = false;
     while(!graph_execution_aborted) {
-        execute_graph_tick(graph, flip_bit);
+        execute_graph_tick(graph, flip_bit, poll_input);
         flip_bit = !flip_bit;
+
+        usleep(tick_delay);
     }
+}
+
+void abort_graph_execution() {
+    graph_execution_aborted = true;
 }
 
 static BCC_WIRE_TYPE get_true_output(GraphNode_t* node, bool flip_bit) {

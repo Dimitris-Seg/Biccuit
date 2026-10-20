@@ -14,8 +14,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-bool is_key_pressed(int keychar);
+typedef void(*TerminalShutdownCallback)(void);
+
+bool is_key_pressed(int keychar, bool raw);
+bool is_any_key_pressed(bool raw);
 
 void _poll_keyboard();
+void _set_shutdown_callback(TerminalShutdownCallback callback);
 
 #endif

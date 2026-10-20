@@ -34,17 +34,17 @@ Plugin_t provide_plugin() {
 // Descriptors //
 
 static NodeDescriptor_t and_descriptor = (NodeDescriptor_t) {
-    .expected_inputs = 2,
+    .expected_inputs = -1,
     .evaluator = evaluate_and
 };
 
 static NodeDescriptor_t or_descriptor = (NodeDescriptor_t) {
-    .expected_inputs = 2,
+    .expected_inputs = -1,
     .evaluator = evaluate_or
 };
 
 static NodeDescriptor_t xor_descriptor = (NodeDescriptor_t) {
-    .expected_inputs = 2,
+    .expected_inputs = -1,
     .evaluator = evaluate_xor
 };
 
@@ -86,9 +86,9 @@ static void evaluate_or(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_cou
 }
 
 static void evaluate_xor(Node_t* self, const BCC_WIRE_TYPE* inputs, int input_count) {
-    bool result = inputs[0];
+    bool result = false;
 
-    for(int i = 1; i < input_count; ++i) {
+    for(int i = 0; i < input_count; ++i) {
         result = result != inputs[i];
     }
 
